@@ -4,8 +4,9 @@ import time
 import threading
 import math
 
-carCascade = cv2.CascadeClassifier('myhaar.xml')
-video = cv2.VideoCapture('free.mp4')
+carCascade = cv2.CascadeClassifier('..\\Classifier\\myhaar.xml')
+lineCascade = cv2.CascadeClassifier('..\\Classifier\\linecascade.xml')
+video = cv2.VideoCapture('..\\Videos\\default.mp4')
 
 WIDTH = 1280
 HEIGHT = 720
@@ -17,10 +18,37 @@ def estimateSpeed(location1, location2):
     ppm = 8.8
     d_meters = d_pixels / ppm
     # print("d_pixels=" + str(d_pixels), "d_meters=" + str(d_meters))
-    fps = 18
+    fps = video.get(cv2.CAP_PROP_FPS)
     speed = d_meters * fps * 3.6
     return speed
 
+def getTrafficLines(image):
+    lineTracker = {}
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    lines = lineCascade.detectMultiScale(gray, 1.1, 13, 18, (5, 5))
+    lineID = 0
+    for (_x, _y, _w, _h) in lines:
+        x = int(_x)
+        y = int(_y)
+        w = int(_w)
+        h = int(_h)
+        tracker = dlib.correlation_tracker()
+        tracker.start_track(image, dlib.rectangle(x, y, x + w, y + h))
+        lineTracker[lineID] = tracker
+        lineID = lineID + 1
+    return lineTracker
+
+def findClosestTrafficLine(lineTracker, carLocation):
+    closest = 10000000000000
+    closestLine = lineTracker[0]
+    carX = carLocation[0]
+    carY = carLocation[1] + carLocation[3]
+    for line in lineTracker:
+        distance = math.sqrt((int(line.get_position().left()) - carX)**2 + (int(line.get_position().top()) - carY)**2)
+        if (distance < closest):
+            closest = distance
+            closestLine = line
+    return closestLine
 
 def trackMultipleObjects():
     rectangleColor = (0, 255, 0)
@@ -58,15 +86,13 @@ def trackMultipleObjects():
 
         for carID in carIDtoDelete:
             print('Removing carID ' + str(carID) + ' from list of trackers.')
-            print('Removing carID ' + str(carID) + ' previous location.')
-            print('Removing carID ' + str(carID) + ' current location.')
             carTracker.pop(carID, None)
             carLocation1.pop(carID, None)
             carLocation2.pop(carID, None)
 
         if not (frameCounter % 10):
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            cars = carCascade.detectMultiScale(gray, 1.1, 13, 18, (24, 24))
+            cars = carCascade.detectMultiScale(gray, 1.1, 13, 18, (20, 20))
 
             for (_x, _y, _w, _h) in cars:
                 x = int(_x)
@@ -127,6 +153,18 @@ def trackMultipleObjects():
 
         # cv2.putText(resultImage, 'FPS: ' + str(int(fps)), (620, 30),cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
+        # testing traffic line classifier
+        lineColor = (255, 255, 255)
+        trackedLines = getTrafficLines(image)
+        for lineID in trackedLines.keys():
+            trackedPosition = trackedLines[lineID].get_position()
+            t_x = int(trackedPosition.left())
+            t_y = int(trackedPosition.top())
+            t_w = int(trackedPosition.width())
+            t_h = int(trackedPosition.height())
+            cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w, t_y + t_h), lineColor, 4)
+
+
         for i in carLocation1.keys():
             if frameCounter % 1 == 0:
                 [x1, y1, w1, h1] = carLocation1[i]
@@ -137,11 +175,10 @@ def trackMultipleObjects():
 
                 # print 'new previous location: ' + str(carLocation1[i])
                 if [x1, y1, w1, h1] != [x2, y2, w2, h2]:
-                    if (speed[i] == None or speed[i] == 0) and y1 >= 275 and y1 <= 285:
-                        speed[i] = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2])
+                    speed[i] = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2])
 
                     # if y1 > 275 and y1 < 285:
-                    if speed[i] != None and y1 >= 180:
+                    if speed[i] != None:
                         cv2.putText(resultImage, str(int(speed[i])) + " km/hr", (int(x1 + w1 / 2), int(y1 - 5)),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
 
@@ -153,11 +190,12 @@ def trackMultipleObjects():
                 # print ('CarID ' + str(i) + ' Location1: ' + str(carLocation1[i]) + ' Location2: ' + str(carLocation2[i]) + ' speed is ' + str("%.2f" % round(speed[i], 0)) + ' km/h.\n')
         cv2.imshow('result', resultImage)
         # Write the frame into the file 'output.avi'
-        # out.write(resultImage)
+        out.write(resultImage)
 
         if cv2.waitKey(33) == 27:
             break
 
+    video.release()
     cv2.destroyAllWindows()
 
 

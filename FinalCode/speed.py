@@ -4,13 +4,12 @@ import time
 import threading
 import math
 
-carCascade = cv2.CascadeClassifier('..\\Classifier\\myhaar.xml')
-lineCascade = cv2.CascadeClassifier('..\\Classifier\\linecascade.xml')
-video = cv2.VideoCapture('..\\Videos\\default.mp4')
+carCascade = cv2.CascadeClassifier('../Classifier/myhaar.xml')
+lineCascade = cv2.CascadeClassifier('../Classifier/linecascade2.xml')
+video = cv2.VideoCapture('../Videos/default.mp4')
 
 WIDTH = 1280
 HEIGHT = 720
-
 
 def estimateSpeed(location1, location2):
     d_pixels = math.sqrt(math.pow(location2[0] - location1[0], 2) + math.pow(location2[1] - location1[1], 2))
@@ -22,19 +21,20 @@ def estimateSpeed(location1, location2):
     speed = d_meters * fps * 3.6
     return speed
 
+def distanceFormula(x1, y1, x2, y2):
+    return math.sqrt((x2-x1)**2 + (y2-y1)**2)
+
 def getTrafficLines(image):
     lineTracker = {}
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    lines = lineCascade.detectMultiScale(gray, 1.1, 13, 18, (5, 5))
+    lines = lineCascade.detectMultiScale(gray, 1.1, 10, 10, (3, 3))
     lineID = 0
     for (_x, _y, _w, _h) in lines:
         x = int(_x)
         y = int(_y)
         w = int(_w)
         h = int(_h)
-        tracker = dlib.correlation_tracker()
-        tracker.start_track(image, dlib.rectangle(x, y, x + w, y + h))
-        lineTracker[lineID] = tracker
+        lineTracker[lineID] = [x, y, w, h]
         lineID = lineID + 1
     return lineTracker
 
@@ -44,7 +44,9 @@ def findClosestTrafficLine(lineTracker, carLocation):
     carX = carLocation[0]
     carY = carLocation[1] + carLocation[3]
     for line in lineTracker:
-        distance = math.sqrt((int(line.get_position().left()) - carX)**2 + (int(line.get_position().top()) - carY)**2)
+        lineXCenter = int(line.get_position().left()) + int(line.get_position().width()) / 2
+        lineYCenter = int(line.get_position().top()) + int(line.get_position().height()) / 2
+        distance = distanceFormula(carX, carY, lineXCenter, lineYCenter)
         if (distance < closest):
             closest = distance
             closestLine = line
@@ -52,6 +54,7 @@ def findClosestTrafficLine(lineTracker, carLocation):
 
 def trackMultipleObjects():
     rectangleColor = (0, 255, 0)
+    lineColor = (255, 255, 255)
     frameCounter = 0
     currentCarID = 0
     fps = 0
@@ -154,16 +157,14 @@ def trackMultipleObjects():
         # cv2.putText(resultImage, 'FPS: ' + str(int(fps)), (620, 30),cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
         # testing traffic line classifier
-        lineColor = (255, 255, 255)
-        trackedLines = getTrafficLines(image)
-        for lineID in trackedLines.keys():
-            trackedPosition = trackedLines[lineID].get_position()
-            t_x = int(trackedPosition.left())
-            t_y = int(trackedPosition.top())
-            t_w = int(trackedPosition.width())
-            t_h = int(trackedPosition.height())
-            cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w, t_y + t_h), lineColor, 4)
-
+        lines = getTrafficLines(image)
+        if (frameCounter != 0):
+            for lineID in lines.keys():
+                t_x = lines[lineID][0]
+                t_y = lines[lineID][1]
+                t_w = lines[lineID][2]
+                t_h = lines[lineID][3]
+                cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w, t_y + t_h), lineColor, 4)
 
         for i in carLocation1.keys():
             if frameCounter % 1 == 0:

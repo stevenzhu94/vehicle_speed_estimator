@@ -5,7 +5,7 @@ import threading
 import math
 
 carCascade = cv2.CascadeClassifier('../Classifier/myhaar.xml')
-lineCascade = cv2.CascadeClassifier('../Classifier/linecascade2.xml')
+lineCascade = cv2.CascadeClassifier('../Classifier/linecascade.xml')
 video = cv2.VideoCapture('../Videos/default.mp4')
 
 WIDTH = 1280
@@ -27,7 +27,7 @@ def distanceFormula(x1, y1, x2, y2):
 def getTrafficLines(image):
     lineTracker = {}
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    lines = lineCascade.detectMultiScale(gray, 1.1, 10, 10, (3, 3))
+    lines = lineCascade.detectMultiScale(gray, 1.1, 3, 10, (1, 1),(5,5))
     lineID = 0
     for (_x, _y, _w, _h) in lines:
         x = int(_x)

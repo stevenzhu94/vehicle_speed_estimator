@@ -3,6 +3,11 @@ import dlib
 import time
 import threading
 import math
+import imutils
+import numpy as np
+from scipy.spatial import distance as dist
+from imutils import perspective
+from imutils import contours
 
 carCascade = cv2.CascadeClassifier('../Classifier/myhaar.xml')
 lineCascade = cv2.CascadeClassifier('../Classifier/linecascade.xml')
@@ -19,6 +24,18 @@ def estimateSpeed(location1, location2):
     # print("d_pixels=" + str(d_pixels), "d_meters=" + str(d_meters))
     fps = video.get(cv2.CAP_PROP_FPS)
     speed = d_meters * fps * 3.6
+    return speed
+
+def estimateSpeed(location1, location2, lineTracker):
+    d_pixels = distanceFormula(location1[0], location1[1], location2[0], location2[1])
+    closestLine = findClosestLine(lineTracker, location2)
+
+    #find closest line ppm
+    ppm = 8.8
+    d_meters = d_pixels / ppm
+    fps = video.get(cv2.CAP_PROP_FPS)
+    speed = d_meters * fps * 3.6
+
     return speed
 
 def distanceFormula(x1, y1, x2, y2):
@@ -38,14 +55,14 @@ def getTrafficLines(image):
         lineID = lineID + 1
     return lineTracker
 
-def findClosestTrafficLine(lineTracker, carLocation):
+def findClosestLine(lineTracker, carLocation):
     closest = 10000000000000
-    closestLine = lineTracker[0]
+    closestLine = None
     carX = carLocation[0]
     carY = carLocation[1] + carLocation[3]
-    for line in lineTracker:
-        lineXCenter = int(line.get_position().left()) + int(line.get_position().width()) / 2
-        lineYCenter = int(line.get_position().top()) + int(line.get_position().height()) / 2
+    for lineID in lineTracker.keys():
+        lineXCenter = lines[lineID][0] + lines[lineID][2] / 2
+        lineYCenter = lines[lineID][1] + lines[lineID][3] / 2
         distance = distanceFormula(carX, carY, lineXCenter, lineYCenter)
         if (distance < closest):
             closest = distance
@@ -165,7 +182,8 @@ def trackMultipleObjects():
         # cv2.putText(resultImage, 'FPS: ' + str(int(fps)), (620, 30),cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
         # testing traffic line classifier
-        testLines(image, resultImage)
+        # testLines(image, resultImage)
+        lineTracker = getTrafficLines(image)
 
         for i in carLocation1.keys():
             if frameCounter % 1 == 0:

@@ -29,13 +29,11 @@ def estimateSpeed(location1, location2):
 def estimateSpeed(location1, location2, lineTracker):
     d_pixels = distanceFormula(location1[0], location1[1], location2[0], location2[1])
     closestLine = findClosestLine(lineTracker, location2)
-
     #find closest line ppm
     ppm = 8.8
     d_meters = d_pixels / ppm
     fps = video.get(cv2.CAP_PROP_FPS)
     speed = d_meters * fps * 3.6
-
     return speed
 
 def distanceFormula(x1, y1, x2, y2):
@@ -77,6 +75,30 @@ def testLines(image, resultImage):
         t_w = lines[lineID][2]
         t_h = lines[lineID][3]
         cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w, t_y + t_h), (255, 255, 255), 4)
+
+def measureSize(image, resultImage):
+    # convert to grayscale, and blur it slightly
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (7, 7), 0)
+
+    # perform edge detection, then perform a dilation + erosion to
+    # close gaps in between object edges
+    edged = cv2.Canny(gray, 15, 100)
+    edged = cv2.dilate(edged, None, iterations=1)
+    edged = cv2.erode(edged, None, iterations=1)
+
+    cv2.imshow('Edges', edged)
+
+    # find contours in the edge map
+    # cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # cnts = imutils.grab_contours(cnts)
+    # # sort the contours from left-to-right and initialize the
+    # # 'pixels per metric' calibration variable
+    # (cnts, _) = contours.sort_contours(cnts)
+    # pixelsPerMetric = None
+
+    return resultImage
+
 
 def trackMultipleObjects():
     rectangleColor = (0, 255, 0)
@@ -208,7 +230,8 @@ def trackMultipleObjects():
                 #	cv2.putText(resultImage, "Far Object", (int(x1 + w1/2), int(y1)),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
                 # print ('CarID ' + str(i) + ' Location1: ' + str(carLocation1[i]) + ' Location2: ' + str(carLocation2[i]) + ' speed is ' + str("%.2f" % round(speed[i], 0)) + ' km/h.\n')
-        cv2.imshow('result', resultImage)
+        # cv2.imshow('result', resultImage)
+        measureSize(image, resultImage)
         # Write the frame into the file 'output.avi'
         out.write(resultImage)
 

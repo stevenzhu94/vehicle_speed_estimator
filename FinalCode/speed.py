@@ -52,9 +52,17 @@ def findClosestTrafficLine(lineTracker, carLocation):
             closestLine = line
     return closestLine
 
+def testLines(image, resultImage):
+    lines = getTrafficLines(image)
+    for lineID in lines.keys():
+        t_x = lines[lineID][0]
+        t_y = lines[lineID][1]
+        t_w = lines[lineID][2]
+        t_h = lines[lineID][3]
+        cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w, t_y + t_h), (255, 255, 255), 4)
+
 def trackMultipleObjects():
     rectangleColor = (0, 255, 0)
-    lineColor = (255, 255, 255)
     frameCounter = 0
     currentCarID = 0
     fps = 0
@@ -157,14 +165,7 @@ def trackMultipleObjects():
         # cv2.putText(resultImage, 'FPS: ' + str(int(fps)), (620, 30),cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
         # testing traffic line classifier
-        lines = getTrafficLines(image)
-        if (frameCounter != 0):
-            for lineID in lines.keys():
-                t_x = lines[lineID][0]
-                t_y = lines[lineID][1]
-                t_w = lines[lineID][2]
-                t_h = lines[lineID][3]
-                cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w, t_y + t_h), lineColor, 4)
+        testLines(image, resultImage)
 
         for i in carLocation1.keys():
             if frameCounter % 1 == 0:

@@ -26,14 +26,18 @@ def estimateSpeed(location1, location2):
     speed = d_meters * fps * 3.6
     return speed
 
-def estimateSpeed(location1, location2, lineTracker):
+def estimateSpeed2(location1, location2, lineTracker, image, cnts):
     d_pixels = distanceFormula(location1[0], location1[1], location2[0], location2[1])
     closestLine = findClosestLine(lineTracker, location2)
     #find closest line ppm
-    ppm = 8.8
+    ppm = getPixelPerMetric(closestLine, cnts, 3)
+    if (ppm == None):
+        return None
+
     d_meters = d_pixels / ppm
     fps = video.get(cv2.CAP_PROP_FPS)
     speed = d_meters * fps * 3.6
+    # print("ppm: ", ppm, "| d_mtrs: ", d_meters, "| spd: ", speed)
     return speed
 
 def distanceFormula(x1, y1, x2, y2):
@@ -59,12 +63,12 @@ def findClosestLine(lineTracker, carLocation):
     carX = carLocation[0]
     carY = carLocation[1] + carLocation[3]
     for lineID in lineTracker.keys():
-        lineXCenter = lines[lineID][0] + lines[lineID][2] / 2
-        lineYCenter = lines[lineID][1] + lines[lineID][3] / 2
+        lineXCenter = lineTracker[lineID][0] + lineTracker[lineID][2] / 2
+        lineYCenter = lineTracker[lineID][1] + lineTracker[lineID][3] / 2
         distance = distanceFormula(carX, carY, lineXCenter, lineYCenter)
         if (distance < closest):
             closest = distance
-            closestLine = line
+            closestLine = lineTracker[lineID]
     return closestLine
 
 def testLines(image, resultImage):
@@ -76,29 +80,42 @@ def testLines(image, resultImage):
         t_h = lines[lineID][3]
         cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w, t_y + t_h), (255, 255, 255), 4)
 
-def measureSize(image, resultImage):
+def getPixelPerMetric(line, cnts, metric):
+    # find contour belonging to line param
+    lx, ly, lw, lh = line
+    lineContour = None
+    for c in cnts:
+        cx, cy, cw, ch = cv2.boundingRect(c)
+        if (lx < cx and ly < cy and (lx+lw) > (cx+cw) and (ly+lh) > (cy+ch)):
+            lineContour = cv2.boundingRect(c)
+            break
+
+    if (lineContour == None):
+        return None
+    else:
+        # print("Match: ", line, lineContour)
+        x, y, w, h = lineContour
+        pixelsPerMetric = distanceFormula(x, y, x+w, y+h) / metric
+        return pixelsPerMetric
+
+def getContourMap(image):
     # convert to grayscale, and blur it slightly
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     gray = cv2.GaussianBlur(gray, (7, 7), 0)
 
     # perform edge detection, then perform a dilation + erosion to
     # close gaps in between object edges
-    edged = cv2.Canny(gray, 15, 100)
+    edged = cv2.Canny(gray, 25, 100)
     edged = cv2.dilate(edged, None, iterations=1)
     edged = cv2.erode(edged, None, iterations=1)
 
-    cv2.imshow('Edges', edged)
+    #  show edge map
+    # cv2.imshow('Edges', edged)
 
     # find contours in the edge map
-    # cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # cnts = imutils.grab_contours(cnts)
-    # # sort the contours from left-to-right and initialize the
-    # # 'pixels per metric' calibration variable
-    # (cnts, _) = contours.sort_contours(cnts)
-    # pixelsPerMetric = None
-
-    return resultImage
-
+    cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    return cnts
 
 def trackMultipleObjects():
     rectangleColor = (0, 255, 0)
@@ -112,6 +129,8 @@ def trackMultipleObjects():
     carLocation2 = {}
     speed = [None] * 1000
 
+    cnts = None
+
     # Write output to video file
     out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (WIDTH, HEIGHT))
 
@@ -123,6 +142,9 @@ def trackMultipleObjects():
 
         image = cv2.resize(image, (WIDTH, HEIGHT))
         resultImage = image.copy()
+
+        if frameCounter == 0:
+            cnts = getContourMap(image)
 
         frameCounter = frameCounter + 1
 
@@ -217,7 +239,8 @@ def trackMultipleObjects():
 
                 # print 'new previous location: ' + str(carLocation1[i])
                 if [x1, y1, w1, h1] != [x2, y2, w2, h2]:
-                    speed[i] = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2])
+                    # speed[i] = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2])
+                    speed[i] = estimateSpeed2([x1, y1, w1, h1], [x2, y2, w2, h2], lineTracker, image, cnts)
 
                     # if y1 > 275 and y1 < 285:
                     if speed[i] != None:
@@ -230,8 +253,8 @@ def trackMultipleObjects():
                 #	cv2.putText(resultImage, "Far Object", (int(x1 + w1/2), int(y1)),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
                 # print ('CarID ' + str(i) + ' Location1: ' + str(carLocation1[i]) + ' Location2: ' + str(carLocation2[i]) + ' speed is ' + str("%.2f" % round(speed[i], 0)) + ' km/h.\n')
-        # cv2.imshow('result', resultImage)
-        measureSize(image, resultImage)
+        cv2.imshow('result', resultImage)
+
         # Write the frame into the file 'output.avi'
         out.write(resultImage)
 

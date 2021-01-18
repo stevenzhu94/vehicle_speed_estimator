@@ -5,8 +5,6 @@ import threading
 import math
 import imutils
 import numpy as np
-from scipy.spatial import distance as dist
-from imutils import perspective
 from imutils import contours
 
 carCascade = cv2.CascadeClassifier('../Classifier/myhaar.xml')
@@ -16,17 +14,17 @@ video = cv2.VideoCapture('../Videos/default.mp4')
 WIDTH = 1280
 HEIGHT = 720
 
-def estimateSpeed(location1, location2):
-    d_pixels = math.sqrt(math.pow(location2[0] - location1[0], 2) + math.pow(location2[1] - location1[1], 2))
-    # ppm = location2[2] / carWidht
-    ppm = 8.8
-    d_meters = d_pixels / ppm
-    # print("d_pixels=" + str(d_pixels), "d_meters=" + str(d_meters))
-    fps = video.get(cv2.CAP_PROP_FPS)
-    speed = d_meters * fps * 3.6
-    return speed
+# def estimateSpeed(location1, location2):
+#     d_pixels = math.sqrt(math.pow(location2[0] - location1[0], 2) + math.pow(location2[1] - location1[1], 2))
+#     # ppm = location2[2] / carWidht
+#     ppm = 8.8
+#     d_meters = d_pixels / ppm
+#     # print("d_pixels=" + str(d_pixels), "d_meters=" + str(d_meters))
+#     fps = video.get(cv2.CAP_PROP_FPS)
+#     speed = d_meters * fps * 3.6
+#     return speed
 
-def estimateSpeed2(location1, location2, lineTracker, image, cnts):
+def estimateSpeed(location1, location2, lineTracker, image, cnts):
     d_pixels = distanceFormula(location1[0], location1[1], location2[0], location2[1])
     closestLine = findClosestLine(lineTracker, location2)
     #find closest line ppm
@@ -143,8 +141,10 @@ def trackMultipleObjects():
         image = cv2.resize(image, (WIDTH, HEIGHT))
         resultImage = image.copy()
 
+        # get contour map and traffic lines on first frame
         if frameCounter == 0:
             cnts = getContourMap(image)
+            lineTracker = getTrafficLines(image)
 
         frameCounter = frameCounter + 1
 
@@ -227,7 +227,6 @@ def trackMultipleObjects():
 
         # testing traffic line classifier
         # testLines(image, resultImage)
-        lineTracker = getTrafficLines(image)
 
         for i in carLocation1.keys():
             if frameCounter % 1 == 0:
@@ -240,12 +239,14 @@ def trackMultipleObjects():
                 # print 'new previous location: ' + str(carLocation1[i])
                 if [x1, y1, w1, h1] != [x2, y2, w2, h2]:
                     # speed[i] = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2])
-                    speed[i] = estimateSpeed2([x1, y1, w1, h1], [x2, y2, w2, h2], lineTracker, image, cnts)
+                    speed[i] = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2], lineTracker, image, cnts)
 
                     # if y1 > 275 and y1 < 285:
                     if speed[i] != None:
                         cv2.putText(resultImage, str(int(speed[i])) + " km/hr", (int(x1 + w1 / 2), int(y1 - 5)),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
+                    else:
+                      cv2.putText(resultImage, "???", (int(x1 + w1/2), int(y1)),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
                 # print ('CarID ' + str(i) + ': speed is ' + str("%.2f" % round(speed[i], 0)) + ' km/h.\n')
 

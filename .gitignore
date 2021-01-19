@@ -1,2 +1,5 @@
 # Project exclude paths
 /venv/
+
+# Ignore output video
+outpy.avi

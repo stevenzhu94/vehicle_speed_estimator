@@ -4,6 +4,7 @@ import time
 import threading
 import math
 import imutils
+import queue
 import numpy as np
 from imutils import contours
 
@@ -167,6 +168,7 @@ def trackMultipleObjects():
                 print('Removing low quality tracker ' + str(carID))
                 del carTracker[carID]
                 del carLocation[carID]
+                del speed[carID]
 
         # Identifying the vehicles, traffic lines, and contour lines are expensive so we limit it to once per second
         # Map identified vehicles to ones we are already tracking, then add new trackers for the ones we are not
@@ -211,12 +213,12 @@ def trackMultipleObjects():
 
                     carTracker[currentCarID] = tracker
                     carLocation[currentCarID] = [x, y, w, h]
-                    speed[currentCarID] = None
+                    speed[currentCarID] = queue.Queue()
 
                     currentCarID = currentCarID + 1
 
         # test traffic line classifier
-        showTrafficLines(lineTracker, image, resultImage)
+        # showTrafficLines(lineTracker, image, resultImage)
 
         # go through tracker, get predicted position from tracker and compare to previous position for estimated speed
         for carID in carTracker.keys():
@@ -233,11 +235,16 @@ def trackMultipleObjects():
             carLocation[carID] = [x2, y2, w2, h2]
 
             if [x1, y1, w1, h1] != [x2, y2, w2, h2]:
+                q = speed[carID]
                 # speed[carID] = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2])
-                speed[carID] = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2], lineTracker, image, cnts, resultImage)
-
-                if speed[carID]:
-                    cv2.putText(resultImage, str(int(speed[carID])) + " km/hr", (int(x1 + w1 / 2), int(y1 - 5)),
+                curSpeed = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2], lineTracker, image, cnts, resultImage)
+                if (curSpeed):
+                    q.put(curSpeed)
+                    if (q.qsize() > fps):
+                        q.get()
+                if (q.qsize() == fps):
+                    averageSpeed = sum(list(q.queue)) / fps
+                    cv2.putText(resultImage, str(int(averageSpeed)) + " km/hr", (int(x1 + w1 / 2), int(y1 - 5)),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
 
 

@@ -89,7 +89,7 @@ def getPixelPerMetric(line, cnts, metric, resultImage, carLocation):
     lineContour = None
     box = None
 
-    for c in cnts:
+    for c in reversed(cnts):
         cx, cy, cw, ch = cv2.boundingRect(c)
         if (lx < cx and ly < cy and (lx+lw) > (cx+cw) and (ly+lh) > (cy+ch)):
             lineContour = cv2.boundingRect(c)
@@ -122,8 +122,8 @@ def getContourMap(frame):
     # perform edge detection, then perform a dilation + erosion to
     # close gaps in between object edges
     edged = cv2.Canny(gray, 50, 100)
-    edged = cv2.dilate(edged, None, iterations=2)
-    edged = cv2.erode(edged, None, iterations=2)
+    edged = cv2.dilate(edged, None, iterations=1)
+    edged = cv2.erode(edged, None, iterations=1)
 
     #  show edge map
     # cv2.imshow('Edges', edged)
@@ -131,7 +131,7 @@ def getContourMap(frame):
     # find contours in the edge map
     cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
-    return cnts
+    return sorted(cnts, key=cv2.contourArea)
 
 def trackMultipleObjects():
     fps = getFPS()

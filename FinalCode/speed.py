@@ -39,7 +39,6 @@ def estimateSpeed(location1, location2, lineTracker, frame, cnts, resultImage):
     fps = getFPS()
     speed = d_meters * fps * 3.6
     # print("ppm: ", ppm, "| d_mtrs: ", d_meters, "| spd: ", speed)
-
     return speed
 
 def distanceFormula(x1, y1, x2, y2):
@@ -122,8 +121,8 @@ def getContourMap(frame):
     # perform edge detection, then perform a dilation + erosion to
     # close gaps in between object edges
     edged = cv2.Canny(gray, 50, 100)
-    edged = cv2.dilate(edged, None, iterations=1)
-    edged = cv2.erode(edged, None, iterations=1)
+    edged = cv2.dilate(edged, None, iterations=2)
+    edged = cv2.erode(edged, None, iterations=2)
 
     #  show edge map
     # cv2.imshow('Edges', edged)
@@ -138,14 +137,11 @@ def trackMultipleObjects():
     rectangleColor = (0, 255, 0)
     frameCounter = 0
     currentCarID = 0
-
-    carTracker = {}
-    carNumbers = {}
-    carLocation = {}
-    speed = {}
-
     cnts = None
     lineTracker = None
+    carTracker = {}
+    carLocation = {}
+    speed = {}
 
     # Write output to video file
     out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (WIDTH, HEIGHT))
@@ -227,7 +223,7 @@ def trackMultipleObjects():
             w2 = int(trackedPosition.width())
             h2 = int(trackedPosition.height())
 
-            cv2.rectangle(resultImage, (x2, y2), (x2+w2, y2+h2), rectangleColor, 4)
+            cv2.rectangle(resultImage, (x2, y2), (x2+w2, y2+h2), rectangleColor, 3)
 
             [x1, y1, w1, h1] = carLocation[carID]
             carLocation[carID] = [x2, y2, w2, h2]

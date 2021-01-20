@@ -32,7 +32,7 @@ def estimateSpeed(location1, location2, lineTracker, frame, cnts, resultImage):
     # Use closest traffic line to measure pixel per metric
     metric = 3
     ppm = getPixelPerMetric(closestLine, cnts, metric, resultImage, location2)
-    if (ppm == None):
+    if ppm is None:
         return None
 
     d_meters = d_pixels / ppm
@@ -97,7 +97,7 @@ def getPixelPerMetric(line, cnts, metric, resultImage, carLocation):
             box = np.int0(box)
             break
 
-    if (lineContour == None):
+    if lineContour is None:
         return None
     else:
         x, y, w, h = lineContour

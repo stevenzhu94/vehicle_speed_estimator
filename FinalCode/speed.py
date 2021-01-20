@@ -12,10 +12,8 @@ carCascade = cv2.CascadeClassifier('../Classifier/myhaar.xml')
 lineCascade = cv2.CascadeClassifier('../Classifier/linecascade.xml')
 video = cv2.VideoCapture('../Videos/default.mp4')
 
-WIDTH = 1280
-HEIGHT = 720
-# WIDTH = video.get(cv2.CAP_PROP_FRAME_WIDTH)
-# HEIGHT = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+WIDTH = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+HEIGHT = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 # def estimateSpeed(location1, location2):
 #     d_pixels = math.sqrt(math.pow(location2[0] - location1[0], 2) + math.pow(location2[1] - location1[1], 2))
@@ -107,7 +105,7 @@ def getPixelPerMetric(line, cnts, metric, resultImage, carLocation):
 
         # This draws the detected traffic line and and a line leading to it from the car
         cv2.drawContours(resultImage, [box], 0, (255, 255, 0), 2)
-        if (distanceFormula(carLocation[0], carLocation[1]+carLocation[3], box[0][0], box[0][1]) < 
+        if (distanceFormula(carLocation[0], carLocation[1]+carLocation[3], box[0][0], box[0][1]) <
             distanceFormula(carLocation[0]+carLocation[2], carLocation[1]+carLocation[3], box[0][0], box[0][1])):
             cv2.line(resultImage, (box[0][0],box[0][1]), (carLocation[0], carLocation[1]+carLocation[3]), (255,0,0), 2)
         else:
@@ -136,6 +134,8 @@ def getContourMap(image):
     return cnts
 
 def trackMultipleObjects():
+    print("Video Width: ", WIDTH, ", Height: ", HEIGHT)
+
     fps = getFPS()
     rectangleColor = (0, 255, 0)
     frameCounter = 0

@@ -25,7 +25,7 @@ HEIGHT = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
 #     speed = d_meters * fps * 3.6
 #     return speed
 
-def estimateSpeed(location1, location2, lineTracker, image, cnts, resultImage):
+def estimateSpeed(location1, location2, lineTracker, frame, cnts, resultImage):
     d_pixels = distanceFormula(location1[0], location1[1], location2[0], location2[1])
     closestLine = findClosestLine(lineTracker, location2)
 
@@ -48,9 +48,9 @@ def distanceFormula(x1, y1, x2, y2):
 def getFPS():
     return video.get(cv2.CAP_PROP_FPS)
 
-def getTrafficLines(image):
+def getTrafficLines(frame):
     lineTracker = {}
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     lines = lineCascade.detectMultiScale(gray, 1.1, 4, 10, (4, 4), (6,6))
     lineID = 0
     for (_x, _y, _w, _h) in lines:
@@ -78,7 +78,7 @@ def findClosestLine(lineTracker, carLocation):
             closestLine = lineTracker[lineID]
     return closestLine
 
-def showTrafficLines(lines, image, resultImage):
+def showTrafficLines(lines, resultImage):
     for lineID in lines.keys():
         t_x, t_y, t_w, t_h = lines[lineID]
         cv2.rectangle(resultImage, (t_x, t_y), (t_x + t_w, t_y + t_h), (0, 255, 255), 1)
@@ -114,16 +114,16 @@ def getPixelPerMetric(line, cnts, metric, resultImage, carLocation):
         pixelsPerMetric = distanceFormula(x, y, x+w, y+h) / metric
         return pixelsPerMetric
 
-def getContourMap(image):
+def getContourMap(frame):
     # convert to grayscale, and blur it slightly
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray = cv2.GaussianBlur(gray, (7, 7), 0)
 
     # perform edge detection, then perform a dilation + erosion to
     # close gaps in between object edges
     edged = cv2.Canny(gray, 50, 100)
-    edged = cv2.dilate(edged, None, iterations=1)
-    edged = cv2.erode(edged, None, iterations=1)
+    edged = cv2.dilate(edged, None, iterations=2)
+    edged = cv2.erode(edged, None, iterations=2)
 
     #  show edge map
     # cv2.imshow('Edges', edged)
@@ -134,8 +134,6 @@ def getContourMap(image):
     return cnts
 
 def trackMultipleObjects():
-    print("Video Width: ", WIDTH, ", Height: ", HEIGHT)
-
     fps = getFPS()
     rectangleColor = (0, 255, 0)
     frameCounter = 0
@@ -153,17 +151,17 @@ def trackMultipleObjects():
     out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (WIDTH, HEIGHT))
 
     while True:
-        src, image = video.read()
+        ret, frame = video.read()
 
-        if type(image) == type(None):
+        if type(frame) == type(None):
             break
 
-        image = cv2.resize(image, (WIDTH, HEIGHT))
-        resultImage = image.copy()
+        frame = cv2.resize(frame, (WIDTH, HEIGHT))
+        resultImage = frame.copy()
 
         # Remove low quality tracked vehicles
         for carID in list(carTracker):
-            trackingQuality = carTracker[carID].update(image)
+            trackingQuality = carTracker[carID].update(frame)
             if trackingQuality < 6:
                 print('Removing low quality tracker ' + str(carID))
                 del carTracker[carID]
@@ -173,10 +171,10 @@ def trackMultipleObjects():
         # Identifying the vehicles, traffic lines, and contour lines are expensive so we limit it to once per second
         # Map identified vehicles to ones we are already tracking, then add new trackers for the ones we are not
         if (frameCounter % fps == 0):
-            cnts = getContourMap(image)
-            lineTracker = getTrafficLines(image)
+            cnts = getContourMap(frame)
+            lineTracker = getTrafficLines(frame)
 
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             cars = carCascade.detectMultiScale(gray, 1.1, 20, 18, (25, 25))
 
             for (_x, _y, _w, _h) in cars:
@@ -209,7 +207,7 @@ def trackMultipleObjects():
                     print('Creating new tracker ' + str(currentCarID))
 
                     tracker = dlib.correlation_tracker()
-                    tracker.start_track(image, dlib.rectangle(x, y, x + w, y + h))
+                    tracker.start_track(frame, dlib.rectangle(x, y, x + w, y + h))
 
                     carTracker[currentCarID] = tracker
                     carLocation[currentCarID] = [x, y, w, h]
@@ -218,7 +216,7 @@ def trackMultipleObjects():
                     currentCarID = currentCarID + 1
 
         # test traffic line classifier
-        # showTrafficLines(lineTracker, image, resultImage)
+        # showTrafficLines(lineTracker, resultImage)
 
         # go through tracker, get predicted position from tracker and compare to previous position for estimated speed
         for carID in carTracker.keys():
@@ -237,7 +235,7 @@ def trackMultipleObjects():
             if [x1, y1, w1, h1] != [x2, y2, w2, h2]:
                 q = speed[carID]
                 # speed[carID] = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2])
-                curSpeed = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2], lineTracker, image, cnts, resultImage)
+                curSpeed = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2], lineTracker, frame, cnts, resultImage)
                 if (curSpeed):
                     q.put(curSpeed)
                     if (q.qsize() > fps):
@@ -247,8 +245,7 @@ def trackMultipleObjects():
                     cv2.putText(resultImage, str(int(averageSpeed)) + " km/hr", (int(x1 + w1 / 2), int(y1 - 5)),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
 
-
-        cv2.imshow('result', resultImage)
+        cv2.imshow('Drawn Frame', resultImage)
 
         # Write the frame into the file 'output.avi'
         out.write(resultImage)

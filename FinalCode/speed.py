@@ -62,7 +62,7 @@ def getTrafficLines(frame):
     return lineTracker
 
 def findClosestLine(lineTracker, carLocation):
-    closest = 10000000000000
+    closest = HEIGHT + WIDTH
     closestLine = None
 
     # (carX, carY) reflects the midpoint on the bottom bar of vehicle rectangle
@@ -144,7 +144,7 @@ def trackMultipleObjects():
     speed = {}
 
     # Write output to video file
-    out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (WIDTH, HEIGHT))
+    out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps, (WIDTH, HEIGHT))
 
     while True:
         ret, frame = video.read()

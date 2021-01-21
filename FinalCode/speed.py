@@ -225,21 +225,19 @@ def trackMultipleObjects():
 
             cv2.rectangle(resultImage, (x2, y2), (x2+w2, y2+h2), rectangleColor, 3)
 
-            [x1, y1, w1, h1] = carLocation[carID]
-            carLocation[carID] = [x2, y2, w2, h2]
-
-            if [x1, y1, w1, h1] != [x2, y2, w2, h2]:
+            if carLocation[carID] != [x2, y2, w2, h2]:
                 q = speed[carID]
                 # speed[carID] = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2])
-                curSpeed = estimateSpeed([x1, y1, w1, h1], [x2, y2, w2, h2], lineTracker, frame, cnts, resultImage)
+                curSpeed = estimateSpeed(carLocation[carID], [x2, y2, w2, h2], lineTracker, frame, cnts, resultImage)
                 if (curSpeed):
                     q.put(curSpeed)
                     if (q.qsize() > fps):
                         q.get()
                 if (q.qsize() == fps):
                     averageSpeed = sum(list(q.queue)) / fps
-                    cv2.putText(resultImage, str(int(averageSpeed)) + " km/hr", (int(x1 + w1 / 2), int(y1 - 5)),
+                    cv2.putText(resultImage, str(int(averageSpeed)) + " km/hr", (int(x2 + w2 / 2), int(y2 - 5)),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
+                carLocation[carID] = [x2, y2, w2, h2]
 
         cv2.imshow('Drawn Frame', resultImage)
 

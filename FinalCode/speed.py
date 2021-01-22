@@ -50,7 +50,7 @@ def getFPS():
 def getTrafficLines(frame):
     lineTracker = {}
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    lines = lineCascade.detectMultiScale(gray, 1.1, 4, 10, (4, 4), (6,6))
+    lines = lineCascade.detectMultiScale(gray, 1.1, 4, 10, (1,1), (7,7))
     lineID = 0
     for (_x, _y, _w, _h) in lines:
         x = int(_x)
@@ -212,7 +212,7 @@ def trackMultipleObjects():
                     currentCarID = currentCarID + 1
 
         # test traffic line classifier
-        # showTrafficLines(lineTracker, resultImage)
+        showTrafficLines(lineTracker, resultImage)
 
         # go through tracker, get predicted position from tracker and compare to previous position for estimated speed
         for carID in carTracker.keys():
